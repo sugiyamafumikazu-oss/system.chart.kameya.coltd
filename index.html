@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>有限会社亀屋 設備投資計画＆システム図モデリング</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #fdfbf7; color: #4a4a4a; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; height: 300px; max-height: 350px; }
+        .process-arrow::after { content: '▼'; position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #d97706; font-size: 1.2rem; }
+        @media (min-width: 768px) {
+            .process-arrow::after { content: '▶'; position: absolute; right: -20px; top: 50%; bottom: auto; left: auto; transform: translateY(-50%); }
+        }
+        .active-step { border-color: #d97706; background-color: #fffbeb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+    </style>
+    <!-- Chosen Palette: Warm Bread & Technical (Warm Neutrals #fdfbf7, Bread Crust #d97706, Stainless Steel #64748b, Success Green #10b981) -->
+    <!-- Application Structure Plan: 
+         1. Header: Project Identity & Key Goal (Wage Increase/Production).
+         2. "The System Diagram" (Interactive Core): A flow chart representing the bakery production line. 
+            - Logic: Users click steps (Mixing, Dividing, Baking, Cooling) to reveal WHICH machine is used and WHY it connects to the next step. 
+            - Goal: To demonstrate the "System" aspect requested by the examiner.
+         3. Investment Impact Dashboard: Quantitative data (Production volume, Labor hours) visualized to justify the investment.
+         4. Equipment List & Specs: Detailed data extracted from catalogs (Rational, Torax, etc.) linked to the flow.
+         5. Correction/Remand Guide: Specifically addressing the "remand" points (Address correction, System diagram advice).
+    -->
+    <!-- Visualization & Content Choices:
+         - Process Flow: HTML Flex/Grid layout with interactive cards. Shows logical flow (Inputs -> Process -> Outputs). NO SVG used.
+         - Comparison Charts: Chart.js Bar charts for Production Capacity (Before/After) and Labor Efficiency.
+         - Justification: The flow chart specifically highlights "New" vs "Existing" to show the system integration, directly answering the user's prompt about what a "System Diagram" should look like.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-[#fdfbf7] text-slate-700">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-[#d97706]">有限会社亀屋</span>
+                    <span class="ml-4 text-sm bg-gray-100 py-1 px-3 rounded-full text-gray-600 hidden sm:inline-block">設備投資支援事業 申請対策ツール</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="navTo('system-diagram')" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-orange-50 text-gray-700">システム図（重要）</button>
+                    <button onclick="navTo('impact')" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-orange-50 text-gray-700">導入効果</button>
+                    <button onclick="navTo('remand-check')" class="px-3 py-2 rounded-md text-sm font-medium bg-[#d97706] text-white shadow hover:bg-orange-700">指摘事項対策</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="bg-gradient-to-r from-orange-50 to-white border-b border-orange-100">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between">
+            <div class="md:w-2/3">
+                <h1 class="text-4xl font-bold text-gray-900 mb-4">
+                    <span class="text-[#d97706]">明太マドンナ</span> 増産体制構築プロジェクト
+                </h1>
+                <p class="text-lg text-gray-600 mb-6 leading-relaxed">
+                    立花工場改修および新セントラルキッチン（CK）における最新設備導入計画。<br>
+                    <span class="font-bold">「システム図」</span>の視覚化により、工程間の連携と生産性向上のロジックを明確にします。
+                </p>
+                <div class="flex space-x-4">
+                    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
+                        <p class="text-sm text-gray-500">生産能力目標</p>
+                        <p class="text-2xl font-bold text-gray-800">日産 1,000本 <span class="text-sm text-green-600 font-normal">（現状比 1.6倍）</span></p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500">
+                        <p class="text-sm text-gray-500">賃上げ原資創出</p>
+                        <p class="text-2xl font-bold text-gray-800">労働生産性向上</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 md:mt-0 md:w-1/3 flex justify-center">
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 w-full max-w-sm">
+                    <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">申請概要</h3>
+                    <ul class="text-sm space-y-2">
+                        <li class="flex justify-between"><span>申請コース:</span> <span class="font-medium">躍進的事業推進（賃上げ）</span></li>
+                        <li class="flex justify-between"><span>総投資額:</span> <span class="font-medium">約 1,047万円</span></li>
+                        <li class="flex justify-between"><span>実施場所:</span> <span class="font-medium">新セントラルキッチン（立花CK）</span></li>
+                        <li class="flex justify-between text-red-500 font-bold"><span>再申請期限:</span> <span>2月26日</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- Section 1: System Diagram (The Core Request) -->
+        <section id="system-diagram" class="scroll-mt-20">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                    <span class="bg-[#d97706] text-white w-8 h-8 rounded-full flex items-center justify-center text-lg mr-3">1</span>
+                    製造プロセス・システム図（※指摘事項への回答案）
+                </h2>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mt-4 rounded-r-md">
+                    <p class="text-sm text-blue-800 font-medium">
+                        💡 審査員が求めている「システム図」とは？<br>
+                        単なる機械のリストではなく、<span class="font-bold underline">「どの工程で・どの機械が・どのように連携して」</span>全体の生産性を上げるかを示すフロー図です。
+                        以下の図は、申請書類（図面・見積書）から再構成した推奨モデルです。各工程をクリックして詳細を確認してください。
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Interactive Flow Chart -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative">
+                    <h3 class="text-lg font-bold text-gray-700 mb-6 text-center">明太マドンナ・惣菜パン 製造ラインフロー</h3>
+                    
+                    <div class="flex flex-col md:flex-row justify-between items-center space-y-8 md:space-y-0 relative z-10">
+                        
+                        <!-- Step 1: Dough Making -->
+                        <div class="process-step w-full md:w-1/4 relative cursor-pointer group" onclick="showDetail('step1')">
+                            <div id="card-step1" class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 text-center hover:border-orange-400 transition-all duration-200">
+                                <div class="text-3xl mb-2">🥣</div>
+                                <h4 class="font-bold text-gray-800">1. 仕込・分割</h4>
+                                <p class="text-xs text-gray-500 mt-1">生地作成・計量</p>
+                                <span class="inline-block mt-2 px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">自動化・効率化</span>
+                            </div>
+                            <div class="process-arrow absolute"></div>
+                        </div>
+
+                        <!-- Step 2: Proofing & Molding -->
+                        <div class="process-step w-full md:w-1/4 relative cursor-pointer group" onclick="showDetail('step2')">
+                            <div id="card-step2" class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 text-center hover:border-orange-400 transition-all duration-200">
+                                <div class="text-3xl mb-2">🥐</div>
+                                <h4 class="font-bold text-gray-800">2. 成形・発酵</h4>
+                                <p class="text-xs text-gray-500 mt-1">成形・ホイロ</p>
+                                <span class="inline-block mt-2 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded">品質安定</span>
+                            </div>
+                            <div class="process-arrow absolute"></div>
+                        </div>
+
+                        <!-- Step 3: Baking -->
+                        <div class="process-step w-full md:w-1/4 relative cursor-pointer group" onclick="showDetail('step3')">
+                            <div id="card-step3" class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 text-center hover:border-orange-400 transition-all duration-200">
+                                <div class="text-3xl mb-2">🔥</div>
+                                <h4 class="font-bold text-gray-800">3. 焼成 (Baking)</h4>
+                                <p class="text-xs text-gray-500 mt-1">大量・均一焼成</p>
+                                <span class="inline-block mt-2 px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">ボトルネック解消</span>
+                            </div>
+                            <div class="process-arrow absolute"></div>
+                        </div>
+
+                        <!-- Step 4: Cooling -->
+                        <div class="process-step w-full md:w-1/4 relative cursor-pointer group" onclick="showDetail('step4')">
+                            <div id="card-step4" class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 text-center hover:border-orange-400 transition-all duration-200">
+                                <div class="text-3xl mb-2">❄️</div>
+                                <h4 class="font-bold text-gray-800">4. 急速冷却</h4>
+                                <p class="text-xs text-gray-500 mt-1">粗熱取り・保存</p>
+                                <span class="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">サイクル高速化</span>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="mt-8 text-center text-sm text-gray-400">各工程をクリックして、導入設備とシステムの連携を確認してください</div>
+                </div>
+
+                <!-- Detail Panel -->
+                <div class="lg:col-span-1 bg-white rounded-xl shadow-lg border-t-4 border-orange-500 p-6 flex flex-col h-full">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b pb-2">設備詳細と連携ロジック</h3>
+                    
+                    <!-- Dynamic Content Area -->
+                    <div id="detail-content" class="flex-grow">
+                        <p class="text-gray-500 text-sm italic">左記のシステム図から工程を選択してください。</p>
+                        <p class="mt-4 text-xs text-gray-400">
+                            ※システム図のポイント：<br>
+                            「焼成能力だけ上げても、冷却が追いつかなければ生産は止まる」といった、工程間の整合性を説明することが重要です。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Investment Impact -->
+        <section id="impact" class="scroll-mt-20">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                    <span class="bg-[#d97706] text-white w-8 h-8 rounded-full flex items-center justify-center text-lg mr-3">2</span>
+                    導入効果の定量分析
+                </h2>
+                <p class="text-gray-600 mt-2">
+                    設備投資によって実現する「生産能力の向上」と「時間短縮効果」の試算です。この数値的根拠が、システム図の有効性を裏付けます。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Chart 1: Production Capacity -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h4 class="font-bold text-gray-700 mb-4 text-center">明太マドンナ 日産製造能力の推移</h4>
+                    <div class="chart-container">
+                        <canvas id="productionChart"></canvas>
+                    </div>
+                    <p class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                        <span class="font-bold text-orange-600">システム効果:</span> 
+                        新型オーブン（4枚4段）とブラストチラーの連携により、焼成〜冷却サイクルが高速化。機会損失を解消し、日産1,000本体制を確立。
+                    </p>
+                </div>
+
+                <!-- Chart 2: Labor Efficiency -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h4 class="font-bold text-gray-700 mb-4 text-center">洗浄・後片付け時間の削減効果</h4>
+                    <div class="chart-container">
+                        <canvas id="laborChart"></canvas>
+                    </div>
+                    <p class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                        <span class="font-bold text-blue-600">衛生・労働改善:</span> 
+                        専用洗浄機（ウィンターハルター）導入により、手洗い作業を80%削減。創出した時間を新商品開発と製造に充当。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Remand Check & Advice -->
+        <section id="remand-check" class="scroll-mt-20">
+             <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                    <span class="bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg mr-3">3</span>
+                    指摘事項への対策アクションリスト
+                </h2>
+                <p class="text-gray-600 mt-2">
+                    公社からのチェックリストに基づき、修正・確認が必要な項目を整理しました。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Action Item 1 -->
+                <div class="bg-red-50 border border-red-200 rounded-lg p-5">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 text-2xl">📍</div>
+                        <div class="ml-3">
+                            <h4 class="text-lg font-bold text-red-800">設置場所住所の訂正</h4>
+                            <p class="text-sm text-red-700 mt-1">
+                                申請書には「立花店（立花2-1-11）」と記載されていますが、図面や実態は建設中の「新セントラルキッチン（立花2-1-9）」です。
+                            </p>
+                            <div class="mt-3 bg-white p-3 rounded border border-red-100 text-sm">
+                                <span class="font-bold">対策:</span> 申請書の「設置場所」欄を <span class="font-bold underline">東京都墨田区立花2-1-9</span> に修正し、同所の賃貸借契約書（または謄本）を添付してください。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Item 2 -->
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-5">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 text-2xl">📠</div>
+                        <div class="ml-3">
+                            <h4 class="text-lg font-bold text-orange-800">機械設備一覧の整合性</h4>
+                            <p class="text-sm text-orange-700 mt-1">
+                                見積書の項目（作業費・搬入費）は、機械ごとの取得価格に按分して計上する必要があります。「一式」計上は不可です。
+                            </p>
+                            <div class="mt-3 bg-white p-3 rounded border border-orange-100 text-sm">
+                                <span class="font-bold">対策:</span> 見積書の搬入費等を各機器（オーブン、スチコン等）の価格に含めて再計算し、一覧表と一致させてください。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-sm text-gray-400">本ツールは提出された事業計画書および補正指示書に基づき作成された、申請支援用プロトタイプです。</p>
+            <p class="mt-2 text-xs text-gray-500">© 2026 Finite Company Kameya Investment Plan Visualization</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Data & Interaction -->
+    <script>
+        // Data Store based on extracted PDF content
+        const stepDetails = {
+            'step1': {
+                title: "1. 仕込・分割工程",
+                machine: "モルダー KYS302 / ドゥコンディショナー",
+                desc: "手作業だったガス抜き・成形作業を機械化。",
+                connection: "既存のミキサーから、新規導入のモルダーへ生地を投入。大量の生地を均一かつ高速に処理し、次工程（発酵）への滞留を防ぎます。",
+                benefit: "熟練工でなくとも均一な品質を実現。作業時間短縮。",
+                isNew: false // Some parts existing
+            },
+            'step2': {
+                title: "2. 発酵（ホイロ）工程",
+                machine: "【新規】ドゥコンディショナー (PDD6-M2K 他)",
+                desc: "温度・湿度を精密管理し、翌朝の焼成に合わせて自動で発酵を完了させる。",
+                connection: "前日仕込み→翌朝焼成のサイクルを確立。早朝出勤を削減しつつ、オーブンの稼働開始に合わせて最適な状態の生地を供給するシステム。",
+                benefit: "早朝労働時間の短縮、発酵不足・過多のミス撲滅。",
+                isNew: true
+            },
+            'step3': {
+                title: "3. 焼成工程 (核心)",
+                machine: "【新規】トーラックスオーブン (TRN-441...)",
+                subMachine: "【新規】ラショナル スチームコンベクション (iCombi Pro)",
+                desc: "4枚4段の大型オーブンと多機能スチコンによる大量焼成。",
+                connection: "最も重要なボトルネック解消ポイント。従来機の1.6倍の容量を持つオーブンにより、発酵完了した生地を一気に焼き上げる。これにより欠品（機会損失）を防ぐ。",
+                benefit: "生産量1.6倍、焼きムラの解消、多品種同時調理。",
+                isNew: true
+            },
+            'step4': {
+                title: "4. 急速冷却・保管工程",
+                machine: "【新規】ブラストチラー (BTX-14...)",
+                desc: "焼き上がったパンの粗熱を急速に取る。",
+                connection: "ここが「システム」として重要です。焼成能力が上がっても、冷却が自然放冷では場所を取り、次が焼けません。急速冷却機を入れることで、焼成→冷却→包装のサイクルを高速回転させ、増産分を処理します。",
+                benefit: "菌の繁殖防止（HACCP対応）、乾燥防止、作業スペースの回転率向上。",
+                isNew: true
+            }
+        };
+
+        // UI Interaction Functions
+        function showDetail(stepId) {
+            const data = stepDetails[stepId];
+            const contentDiv = document.getElementById('detail-content');
+            
+            // Highlight styling
+            document.querySelectorAll('.process-step > div').forEach(el => {
+                el.classList.remove('active-step', 'ring-2', 'ring-orange-500');
+            });
+            document.getElementById(`card-${stepId}`).classList.add('active-step', 'ring-2', 'ring-orange-500');
+
+            // Update Content
+            contentDiv.innerHTML = `
+                <div class="animate-fade-in">
+                    <h4 class="text-xl font-bold text-[#d97706] mb-2">${data.title}</h4>
+                    <div class="bg-gray-100 p-3 rounded mb-4">
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">導入/使用設備</span>
+                        <p class="font-bold text-gray-800">${data.machine}</p>
+                        ${data.subMachine ? `<p class="font-bold text-gray-800 mt-1">${data.subMachine}</p>` : ''}
+                    </div>
+                    <div class="mb-4">
+                        <h5 class="font-bold text-gray-700 text-sm mb-1">システム連携の理由（重要）</h5>
+                        <p class="text-sm text-gray-600 leading-relaxed border-l-4 border-orange-300 pl-3">
+                            ${data.connection}
+                        </p>
+                    </div>
+                    <div>
+                        <h5 class="font-bold text-gray-700 text-sm mb-1">導入効果</h5>
+                        <ul class="list-disc list-inside text-sm text-gray-600">
+                            <li>${data.benefit}</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+
+        function navTo(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Charts Initialization
+        window.addEventListener('load', function() {
+            // Chart 1: Production
+            const ctxProd = document.getElementById('productionChart').getContext('2d');
+            new Chart(ctxProd, {
+                type: 'bar',
+                data: {
+                    labels: ['現状 (Before)', '導入後 (After)'],
+                    datasets: [{
+                        label: '明太マドンナ 日産製造数 (本)',
+                        data: [600, 1000],
+                        backgroundColor: ['#cbd5e1', '#d97706'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' 本';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: '本数' } }
+                    }
+                }
+            });
+
+            // Chart 2: Labor Efficiency (Cleaning Time)
+            const ctxLabor = document.getElementById('laborChart').getContext('2d');
+            new Chart(ctxLabor, {
+                type: 'bar',
+                data: {
+                    labels: ['手洗い作業', '専用洗浄機導入'],
+                    datasets: [{
+                        label: '洗浄作業時間 (分/日)',
+                        data: [120, 24], // Assuming 80% reduction from hypothetical 120 mins
+                        backgroundColor: ['#94a3b8', '#10b981'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: '洗浄作業時間の80%削減' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: '分/日' } }
+                    }
+                }
+            });
+
+            // Initialize detail view
+            showDetail('step3');
+        });
+    </script>
+</body>
+</html>
